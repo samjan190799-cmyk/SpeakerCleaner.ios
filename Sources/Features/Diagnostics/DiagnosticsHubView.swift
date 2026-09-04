@@ -1,8 +1,8 @@
 import SwiftUI
 
-// MARK: - Объединенный экран диагностики и трекера ухода за гаджетом
+// MARK: - Центральный диагностический центр (Динамики, Микрофоны, Чек-лист)
 public struct DiagnosticsHubView: View {
-    @State private var selectedTab: Int = 0
+    @State private var selectedTab: Int = 0 // 0: Динамики, 1: Микрофоны, 2: Чек-лист
     
     public init() {}
     
@@ -13,32 +13,44 @@ public struct DiagnosticsHubView: View {
                 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
-                        // Переключатель между акустической диагностикой и трекером заботы
-                        HStack(spacing: 8) {
-                            tabButton(title: "Акустический тест", icon: "waveform.badge.mic", index: 0)
-                            tabButton(title: "Индекс ухода", icon: "checklist", index: 1)
-                        }
-                        .padding(6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color.white.opacity(0.05))
-                        )
-                        .padding(.horizontal, 20)
+                        // Верхний 3-позиционный селектор
+                        tabSelectorBar
                         
+                        // Выбранный диагностический экран
                         if selectedTab == 0 {
-                            DiagnosticsView()
+                            SpeakerDiagnosticView()
+                                .padding(.horizontal, 20)
+                        } else if selectedTab == 1 {
+                            MicDiagnosticView()
+                                .padding(.horizontal, 20)
                         } else {
                             CareChecklistView()
                                 .padding(.horizontal, 20)
                         }
                     }
-                    .padding(.top, 12)
+                    .padding(.top, 14)
                     .padding(.bottom, 40)
                 }
             }
-            .navigationTitle("Диагностика и здоровье")
+            .navigationTitle("Диагностический центр")
             .navigationBarTitleDisplayMode(.inline)
         }
+    }
+    
+    // MARK: - Компоненты экрана
+    
+    private var tabSelectorBar: some View {
+        HStack(spacing: 6) {
+            tabButton(title: "Динамики", icon: "speaker.wave.2.fill", index: 0)
+            tabButton(title: "Микрофоны", icon: "mic.fill", index: 1)
+            tabButton(title: "Чек-лист", icon: "checklist", index: 2)
+        }
+        .padding(6)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.white.opacity(0.05))
+        )
+        .padding(.horizontal, 20)
     }
     
     private func tabButton(title: String, icon: String, index: Int) -> some View {
@@ -54,16 +66,16 @@ public struct DiagnosticsHubView: View {
                 Image(systemName: icon)
                     .font(.caption)
                 Text(title)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isSelected ? Theme.dustGold.opacity(0.2) : Color.clear)
+                    .fill(isSelected ? Theme.waterCyan.opacity(0.2) : Color.clear)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(isSelected ? Theme.dustGold.opacity(0.8) : Color.clear, lineWidth: 1)
+                            .stroke(isSelected ? Theme.waterCyan.opacity(0.8) : Color.clear, lineWidth: 1)
                     )
             )
             .foregroundColor(isSelected ? Theme.textPrimary : Theme.textTertiary)
