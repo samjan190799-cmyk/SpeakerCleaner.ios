@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="AppIcon.png" width="160" height="160" alt="PhoneCare Logo" style="border-radius: 36px; box-shadow: 0 10px 30px rgba(0,245,212,0.3);" />
+</p>
+
 # PhoneCare Hub (iOS 17+, Swift 6.0)
 
 **PhoneCare Hub** — премиальное комплексное iOS-приложение для профессионального ухода, гигиены, акустической очистки и аппаратной диагностики мобильного устройства.
