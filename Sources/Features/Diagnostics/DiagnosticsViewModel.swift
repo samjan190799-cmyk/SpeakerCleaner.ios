@@ -29,8 +29,8 @@ public final class DiagnosticsViewModel {
         self.isTestingChannel = true
         AudioSessionManager.shared.setChannel(channel)
         
-        // Воспроизведение калибровочного тона 440 Гц (Нота Ля) на 2.5 секунды
-        AudioEngineService.shared.startTone(frequency: 440.0, waveform: .sine, volume: 0.8)
+        // Воспроизведение калибровочного тона 440 Гц (Нота Ля) на 2.5 секунды строго в выбранный динамик
+        AudioEngineService.shared.startTone(frequency: 440.0, waveform: .sine, volume: 0.85, channel: channel)
         HapticFeedback.notification(.warning)
         
         Task {

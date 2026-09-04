@@ -45,70 +45,88 @@ public struct ToolsHubView: View {
     // MARK: - Компоненты экрана
     
     private var screenToolsHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Экранные инструменты")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 15, weight: .bold))
                 .foregroundColor(Theme.textSecondary)
                 .padding(.horizontal, 20)
             
             HStack(spacing: 12) {
                 // Кнопка блокировки экрана для протирки
-                Button {
+                screenToolCard(
+                    title: "Режим протирки",
+                    subtitle: "Блокировка сенсора",
+                    icon: "sparkles",
+                    color: Theme.waterCyan,
+                    badge: "30–60 с"
+                ) {
                     HapticFeedback.impact(.medium)
                     showScreenLock = true
-                } label: {
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(Theme.waterCyan.opacity(0.18))
-                            .frame(width: 42, height: 42)
-                            .overlay(
-                                Image(systemName: "sparkles")
-                                    .foregroundColor(Theme.waterCyan)
-                            )
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Режим протирки")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(Theme.textPrimary)
-                            Text("Блокировка сенсора")
-                                .font(.caption2)
-                                .foregroundColor(Theme.textTertiary)
-                        }
-                        Spacer()
-                    }
-                    .padding(12)
-                    .liquidGlass(cornerRadius: 16)
                 }
                 
                 // Кнопка теста матрицы дисплея
-                Button {
+                screenToolCard(
+                    title: "Тест матрицы",
+                    subtitle: "Битые пиксели",
+                    icon: "checkerboard.rectangle",
+                    color: Theme.dustGold,
+                    badge: "OLED / LCD"
+                ) {
                     HapticFeedback.impact(.medium)
                     showPixelTest = true
-                } label: {
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(Theme.dustGold.opacity(0.18))
-                            .frame(width: 42, height: 42)
-                            .overlay(
-                                Image(systemName: "checkerboard.rectangle")
-                                    .foregroundColor(Theme.dustGold)
-                            )
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Тест матрицы")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(Theme.textPrimary)
-                            Text("Битые пиксели")
-                                .font(.caption2)
-                                .foregroundColor(Theme.textTertiary)
-                        }
-                        Spacer()
-                    }
-                    .padding(12)
-                    .liquidGlass(cornerRadius: 16)
                 }
             }
             .padding(.horizontal, 20)
+        }
+    }
+    
+    private func screenToolCard(
+        title: String,
+        subtitle: String,
+        icon: String,
+        color: Color,
+        badge: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .center) {
+                    Circle()
+                        .fill(color.opacity(0.18))
+                        .frame(width: 38, height: 38)
+                        .overlay(
+                            Image(systemName: icon)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(color)
+                        )
+                    
+                    Spacer()
+                    
+                    Text(badge)
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundColor(color)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(color.opacity(0.12))
+                        .clipShape(Capsule())
+                }
+                
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Theme.textPrimary)
+                        .lineLimit(1)
+                    
+                    Text(subtitle)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Theme.textTertiary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 104)
+            .padding(12)
+            .liquidGlass(cornerRadius: 18, strokeColor: color.opacity(0.25))
         }
     }
     

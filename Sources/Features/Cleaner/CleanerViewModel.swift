@@ -83,7 +83,7 @@ public final class CleanerViewModel {
         
         HapticFeedback.notification(.success)
         
-        // Старт аудио-движка в зависимости от режима
+        // Старт аудио-движка в зависимости от режима с учетом выбранного спикера
         switch selectedMode {
         case .water:
             currentFrequency = 165.0
@@ -93,7 +93,8 @@ public final class CleanerViewModel {
                 volume: 1.0,
                 isPulsing: true,
                 pulseOn: 0.45,
-                pulseOff: 0.15
+                pulseOff: 0.15,
+                channel: selectedChannel
             )
             
         case .dust:
@@ -103,7 +104,8 @@ public final class CleanerViewModel {
                 endFreq: 10000.0,
                 duration: 4.0,
                 waveform: .sawtooth,
-                volume: 1.0
+                volume: 1.0,
+                channel: selectedChannel
             )
             
         case .pro:
@@ -111,7 +113,8 @@ public final class CleanerViewModel {
                 frequency: currentFrequency,
                 waveform: .sine,
                 volume: 1.0,
-                isPulsing: false
+                isPulsing: false,
+                channel: selectedChannel
             )
         }
         
@@ -138,7 +141,8 @@ public final class CleanerViewModel {
                 frequency: currentFrequency,
                 waveform: .sine,
                 volume: 1.0,
-                isPulsing: true
+                isPulsing: true,
+                channel: selectedChannel
             )
         case .dust:
             AudioEngineService.shared.startSweep(
@@ -146,13 +150,15 @@ public final class CleanerViewModel {
                 endFreq: 10000.0,
                 duration: 4.0,
                 waveform: .sawtooth,
-                volume: 1.0
+                volume: 1.0,
+                channel: selectedChannel
             )
         case .pro:
             AudioEngineService.shared.startTone(
                 frequency: currentFrequency,
                 waveform: .sine,
-                volume: 1.0
+                volume: 1.0,
+                channel: selectedChannel
             )
         }
         

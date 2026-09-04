@@ -43,19 +43,27 @@ public final class AudioSessionManager {
     public func setChannel(_ channel: SpeakerChannel) {
         self.activeChannel = channel
         applyChannelRouting(channel)
+        AudioEngineService.shared.setChannel(channel)
     }
     
     private func applyChannelRouting(_ channel: SpeakerChannel) {
         let session = AVAudioSession.sharedInstance()
         do {
             switch channel {
-            case .main, .both:
-                // Принудительный вывод на нижний основной динамик
+            case .main:
+                // Нижний динамик
+                try session.setCategory(.playback, mode: .default, options: [.duckOthers])
+                try session.overrideOutputAudioPort(.speaker)
+            case .both:
+                // Оба динамика
+                try session.setCategory(.playback, mode: .default, options: [.duckOthers])
                 try session.overrideOutputAudioPort(.speaker)
             case .earpiece:
-                // В режиме .playAndRecord сброс overrideOutputAudioPort перенаправляет звук в разговорный динамик (ресивер)
+                // Верхний разговорный динамик (ресивер)
+                try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth])
                 try session.overrideOutputAudioPort(.none)
             }
+            try session.setActive(true)
         } catch {
             print("❌ Ошибка маршрутизации аудио-порта \(channel.rawValue): \(error.localizedDescription)")
         }

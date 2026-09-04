@@ -16,6 +16,7 @@ final class AudioRenderContext: @unchecked Sendable {
     private var _sweepStartFreq: Float = 100.0
     private var _sweepEndFreq: Float = 10000.0
     private var _sweepDuration: Double = 5.0
+    private var _channel: SpeakerChannel = .both
     
     // Внутренние параметры аудио-потока
     var phase: Float = 0.0
@@ -24,6 +25,12 @@ final class AudioRenderContext: @unchecked Sendable {
     var isPulseActive: Bool = true
     var currentEnvelope: Float = 1.0
     var sweepTimer: Double = 0.0
+    
+    func setChannel(_ channel: SpeakerChannel) {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        self._channel = channel
+    }
     
     func updateParams(
         frequency: Float,
@@ -35,7 +42,8 @@ final class AudioRenderContext: @unchecked Sendable {
         isSweeping: Bool = false,
         sweepStart: Float = 100.0,
         sweepEnd: Float = 10000.0,
-        sweepDuration: Double = 5.0
+        sweepDuration: Double = 5.0,
+        channel: SpeakerChannel? = nil
     ) {
         os_unfair_lock_lock(&lock)
         defer { os_unfair_lock_unlock(&lock) }
@@ -49,6 +57,9 @@ final class AudioRenderContext: @unchecked Sendable {
         self._sweepStartFreq = sweepStart
         self._sweepEndFreq = sweepEnd
         self._sweepDuration = sweepDuration
+        if let channel {
+            self._channel = channel
+        }
     }
     
     func getParams() -> (
@@ -61,7 +72,8 @@ final class AudioRenderContext: @unchecked Sendable {
         isSweeping: Bool,
         sweepStart: Float,
         sweepEnd: Float,
-        sweepDuration: Double
+        sweepDuration: Double,
+        channel: SpeakerChannel
     ) {
         os_unfair_lock_lock(&lock)
         defer { os_unfair_lock_unlock(&lock) }
@@ -75,7 +87,8 @@ final class AudioRenderContext: @unchecked Sendable {
             _isSweeping,
             _sweepStartFreq,
             _sweepEndFreq,
-            _sweepDuration
+            _sweepDuration,
+            _channel
         )
     }
 }
@@ -88,12 +101,26 @@ public final class AudioEngineService: @unchecked Sendable {
     private var sourceNode: AVAudioSourceNode?
     private let renderContext = AudioRenderContext()
     private var isEngineRunning = false
+    public private(set) var activeChannel: SpeakerChannel = .both
     
     // Коллбэк импульса (для синхронизации с тактильным моторчиком CoreHaptics)
     public var onPulseBurstTriggered: (@Sendable () -> Void)?
     
     private init() {
         setupSourceNode()
+    }
+    
+    public func setChannel(_ channel: SpeakerChannel) {
+        self.activeChannel = channel
+        renderContext.setChannel(channel)
+        switch channel {
+        case .main:
+            engine.mainMixerNode.pan = 1.0
+        case .earpiece:
+            engine.mainMixerNode.pan = -1.0
+        case .both:
+            engine.mainMixerNode.pan = 0.0
+        }
     }
     
     private func setupSourceNode() {
@@ -107,7 +134,7 @@ public final class AudioEngineService: @unchecked Sendable {
             }
             
             let channels = ablPointer.count
-            let ptr = rawData.assumingMemoryBound(to: Float.self)
+            let _ = rawData.assumingMemoryBound(to: Float.self)
             
             let params = context.getParams()
             let dt = 1.0 / Double(context.sampleRate)
@@ -156,11 +183,31 @@ public final class AudioEngineService: @unchecked Sendable {
                 // Вычисление сэмпла волны с огибающей и громкостью
                 let sampleValue = params.waveform.sample(at: context.phase) * params.volume * context.currentEnvelope
                 
-                // Запись сэмпла во все активные стерео-каналы
-                for channel in 0..<channels {
-                    let channelBuffer = ablPointer[channel]
-                    let channelPtr = channelBuffer.mData?.assumingMemoryBound(to: Float.self)
-                    channelPtr?[frame] = sampleValue
+                // Запись сэмпла в стерео-каналы с физической изоляцией спикера
+                if channels >= 2 {
+                    let leftPtr = ablPointer[0].mData?.assumingMemoryBound(to: Float.self)
+                    let rightPtr = ablPointer[1].mData?.assumingMemoryBound(to: Float.self)
+                    
+                    switch params.channel {
+                    case .main:
+                        // Только нижний основной динамик (Right канал в портретной ориентации iOS)
+                        leftPtr?[frame] = 0.0
+                        rightPtr?[frame] = sampleValue
+                    case .earpiece:
+                        // Только верхний разговорный динамик (Left канал в портретной ориентации iOS)
+                        leftPtr?[frame] = sampleValue
+                        rightPtr?[frame] = 0.0
+                    case .both:
+                        // Оба динамика одновременно
+                        leftPtr?[frame] = sampleValue
+                        rightPtr?[frame] = sampleValue
+                    }
+                } else {
+                    for channel in 0..<channels {
+                        let channelBuffer = ablPointer[channel]
+                        let channelPtr = channelBuffer.mData?.assumingMemoryBound(to: Float.self)
+                        channelPtr?[frame] = sampleValue
+                    }
                 }
             }
             
@@ -185,8 +232,12 @@ public final class AudioEngineService: @unchecked Sendable {
         volume: Float = 1.0,
         isPulsing: Bool = false,
         pulseOn: Double = 0.45,
-        pulseOff: Double = 0.15
+        pulseOff: Double = 0.15,
+        channel: SpeakerChannel? = nil
     ) {
+        if let channel {
+            setChannel(channel)
+        }
         renderContext.updateParams(
             frequency: frequency,
             waveform: waveform,
@@ -194,7 +245,8 @@ public final class AudioEngineService: @unchecked Sendable {
             isPulsing: isPulsing,
             pulseOn: pulseOn,
             pulseOff: pulseOff,
-            isSweeping: false
+            isSweeping: false,
+            channel: channel ?? activeChannel
         )
         startEngineIfNeeded()
     }
@@ -204,8 +256,12 @@ public final class AudioEngineService: @unchecked Sendable {
         endFreq: Float = 10000.0,
         duration: Double = 4.0,
         waveform: WaveformType = .sawtooth,
-        volume: Float = 1.0
+        volume: Float = 1.0,
+        channel: SpeakerChannel? = nil
     ) {
+        if let channel {
+            setChannel(channel)
+        }
         renderContext.updateParams(
             frequency: startFreq,
             waveform: waveform,
@@ -214,7 +270,8 @@ public final class AudioEngineService: @unchecked Sendable {
             isSweeping: true,
             sweepStart: startFreq,
             sweepEnd: endFreq,
-            sweepDuration: duration
+            sweepDuration: duration,
+            channel: channel ?? activeChannel
         )
         startEngineIfNeeded()
     }

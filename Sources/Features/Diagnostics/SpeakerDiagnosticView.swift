@@ -176,7 +176,7 @@ public struct SpeakerDiagnosticView: View {
         }
         
         activeTestName = name
-        AudioEngineService.shared.startTone(frequency: freq, waveform: wave, volume: 1.0)
+        AudioEngineService.shared.startTone(frequency: freq, waveform: wave, volume: 1.0, channel: viewModel.selectedChannel)
         HapticFeedback.notification(.warning)
         
         Task {
