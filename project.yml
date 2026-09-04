@@ -11,8 +11,8 @@ targets:
     info:
       path: Sources/App/Info.plist
       properties:
-        CFBundleName: SpeakerCleaner
-        CFBundleDisplayName: "Speaker Cleaner"
+        CFBundleName: PhoneCare
+        CFBundleDisplayName: "PhoneCare"
         CFBundleIdentifier: com.samvel.speakercleaner
         CFBundleVersion: "1"
         CFBundleShortVersionString: "1.0.0"

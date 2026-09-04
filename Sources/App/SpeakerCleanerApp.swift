@@ -1,10 +1,10 @@
 import SwiftUI
 
-// MARK: - Главная точка входа в приложение Speaker Cleaner (iOS 17+, Swift 6.0)
+// MARK: - Главная точка входа в приложение PhoneCare Hub (iOS 17+, Swift 6.0)
 @main
 struct SpeakerCleanerApp: App {
     init() {
-        // Первичная инициализация аудио-сессии при запуске
+        // Инициализация сервисов при запуске
         _ = AudioSessionManager.shared
         _ = HapticBoostManager.shared
     }
@@ -17,33 +17,37 @@ struct SpeakerCleanerApp: App {
     }
 }
 
-// MARK: - Основная навигация приложения (Apple HIG)
+// MARK: - Основная навигация приложения PhoneCare Hub (Apple HIG 2026)
 struct MainTabView: View {
     @State private var selectedTab: Int = 0
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            CleanerView()
+            // Вкладка 1: Хаб инструментов (Очистка динамиков, Pro-генератор, Экранный замок, Тест матрицы)
+            ToolsHubView()
                 .tabItem {
-                    Label("Очистка", systemImage: "speaker.wave.3.fill")
+                    Label("Инструменты", systemImage: "wrench.and.screwdriver.fill")
                 }
                 .tag(0)
             
-            ProGeneratorView()
+            // Вкладка 2: Интерактивная энциклопедия ухода за компонентами
+            EncyclopediaView()
                 .tabItem {
-                    Label("Pro", systemImage: "slider.horizontal.3")
+                    Label("Энциклопедия", systemImage: "book.closed.fill")
                 }
                 .tag(1)
             
-            DiagnosticsView()
+            // Вкладка 3: Экстренный визард первой помощи при инцидентах
+            EmergencyWizardView()
                 .tabItem {
-                    Label("Диагностика", systemImage: "waveform.badge.mic")
+                    Label("Экстренно", systemImage: "cross.case.fill")
                 }
                 .tag(2)
             
-            KnowledgeBaseView()
+            // Вкладка 4: Спектральная диагностика и трекер заботы
+            DiagnosticsHubView()
                 .tabItem {
-                    Label("Гайды", systemImage: "book.fill")
+                    Label("Диагностика", systemImage: "waveform.badge.mic")
                 }
                 .tag(3)
         }
@@ -56,7 +60,7 @@ struct MainTabView: View {
     private func configureTabBarAppearance() {
         let appearance = UITabBarAppearance()
         appearance.configureWithDefaultBackground()
-        appearance.backgroundColor = UIColor(Color(hex: "0B0E14")).withAlphaComponent(0.85)
+        appearance.backgroundColor = UIColor(Color(hex: "080A0F")).withAlphaComponent(0.92)
         
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
