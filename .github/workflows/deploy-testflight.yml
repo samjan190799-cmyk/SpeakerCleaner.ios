@@ -12,13 +12,24 @@ permissions:
 jobs:
   build-and-deploy:
     name: Сборка и отправка в TestFlight
-    runs-on: macos-14
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache Homebrew / XcodeGen
+        id: cache-homebrew
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /opt/homebrew/Cellar/xcodegen
+            /opt/homebrew/bin/xcodegen
+          key: ${{ runner.os }}-homebrew-xcodegen-v4
+
       - name: Install XcodeGen
+        if: steps.cache-homebrew.outputs.cache-hit != 'true'
         run: brew install xcodegen
 
       - name: Select Latest Xcode
@@ -172,7 +183,17 @@ jobs:
 
           echo "🎉 Приложение успешно отправлено в TestFlight!"
 
-      # ─── 9. Сохранение артефакта сборки ─────────────────────────────
+      # ─── 9. Автоматическое приглашение бета-тестировщиков ──────────
+      - name: Add & Invite Beta Testers
+        run: |
+          python3 .github/scripts/add_beta_testers.py
+
+      # ─── 10. Получение информации о бета-группах и инвайтах ────────
+      - name: Get TestFlight Invite Codes & Links
+        run: |
+          python3 .github/scripts/get_invite_codes.py
+
+      # ─── 11. Сохранение артефакта сборки ───────────────────────────
       - name: Upload IPA Artifact
         if: success()
         uses: actions/upload-artifact@v4

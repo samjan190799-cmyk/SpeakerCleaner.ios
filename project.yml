@@ -20,13 +20,20 @@ targets:
         CFBundleExecutable: SpeakerCleaner
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
+        UIRequiresFullScreen: YES
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         NSMicrophoneUsageDescription: "Требуется доступ к микрофону для проведения спектральной оценки чистоты динамика и вычисления частотного отклика."
         UIBackgroundModes:
           - audio
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: "1"
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: "complete"
         ALWAYS_SEARCH_USER_PATHS: "NO"
