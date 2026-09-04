@@ -58,7 +58,7 @@ public struct MicDiagnosticView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "speaker.wave.3.fill")
                         .foregroundColor(Theme.successGreen)
-                        .symbolEffect(.bounce)
+                        .symbolEffect(.bounce, value: micService.isPlayingBack)
                     Text("Воспроизведение вашей записи...")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(Theme.successGreen)

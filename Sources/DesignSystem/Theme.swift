@@ -22,6 +22,11 @@ public enum Theme {
     public static let warningYellow = Color(hex: "FFD166")
     public static let dangerRed = Color(hex: "EF476F")
     
+    // Градиенты режимов
+    public static let waterGradient = LinearGradient.waterGradient
+    public static let dustGradient = LinearGradient.dustGradient
+    public static let proGradient = LinearGradient.proGradient
+    
     // Текстовые цвета
     public static let textPrimary = Color.white
     public static let textSecondary = Color.white.opacity(0.7)

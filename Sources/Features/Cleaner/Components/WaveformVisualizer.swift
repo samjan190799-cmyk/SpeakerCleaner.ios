@@ -44,10 +44,12 @@ public struct WaveformVisualizer: View {
                     let step: CGFloat = 3.0
                     for x in stride(from: 0, through: width, by: step) {
                         let relativeX = x / width
-                        // Огибающая для затухания к краям экрана (Hanning-подобная)
-                        let envelope = sin(relativeX * .pi)
+                        let envelope = sin(relativeX * CGFloat.pi)
                         let wavelength = width / 2.5
-                        let y = midY + sin((x / wavelength) * 2 * .pi + animPhase + waveOffset) * amplitude * envelope
+                        let cycle = (x / wavelength) * 2.0 * CGFloat.pi
+                        let totalAngle = cycle + CGFloat(animPhase + waveOffset)
+                        let waveVal = sin(totalAngle)
+                        let y = midY + waveVal * amplitude * envelope
                         path.addLine(to: CGPoint(x: x, y: y))
                     }
                     

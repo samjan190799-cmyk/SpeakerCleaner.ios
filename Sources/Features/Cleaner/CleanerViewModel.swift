@@ -21,7 +21,7 @@ public final class CleanerViewModel {
     
     public private(set) var isRunning: Bool = false
     public private(set) var isPaused: Bool = false
-    public private(set) var isFinished: Bool = false
+    public var isFinished: Bool = false
     public private(set) var progress: Double = 0.0
     public private(set) var remainingSeconds: Int = 60
     public private(set) var currentFrequency: Float = 165.0
