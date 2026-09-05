@@ -4,6 +4,7 @@ import SwiftUI
 public struct CleanerView: View {
     @State private var viewModel = CleanerViewModel()
     @State private var showChannelSheet = false
+    @State private var showProUpgrade = false
     
     public init() {}
     
@@ -36,14 +37,22 @@ public struct CleanerView: View {
                             isRunning: viewModel.isRunning
                         )
                         
-                        // Центральный круговой прогресс и таймер
-                        ProgressRingView(
-                            progress: viewModel.progress,
-                            remainingSeconds: viewModel.remainingSeconds,
-                            currentFrequency: viewModel.currentFrequency,
-                            isRunning: viewModel.isRunning && !viewModel.isPaused,
-                            mode: viewModel.selectedMode
-                        )
+                        // Центральный круговой прогресс, таймер и физика брызг
+                        ZStack {
+                            WaterDropletsEmitterView(
+                                isActive: viewModel.isRunning && !viewModel.isPaused,
+                                mode: viewModel.selectedMode,
+                                burstTrigger: viewModel.burstTriggerCounter
+                            )
+                            
+                            ProgressRingView(
+                                progress: viewModel.progress,
+                                remainingSeconds: viewModel.remainingSeconds,
+                                currentFrequency: viewModel.currentFrequency,
+                                isRunning: viewModel.isRunning && !viewModel.isPaused,
+                                mode: viewModel.selectedMode
+                            )
+                        }
                         .padding(.vertical, 8)
                         
                         // Динамический визуализатор звуковых волн
@@ -76,9 +85,38 @@ public struct CleanerView: View {
                             .foregroundColor(Theme.textPrimary)
                     }
                 }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        HapticFeedback.impact(.medium)
+                        showProUpgrade = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "crown.fill")
+                                .font(.caption2)
+                            Text("PRO")
+                                .font(.system(size: 11, weight: .black))
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(
+                            LinearGradient(
+                                colors: [Theme.dustGold, Color(hex: "FFAA00")],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .foregroundColor(.black)
+                        .clipShape(Capsule())
+                        .shadow(color: Theme.dustGold.opacity(0.4), radius: 6)
+                    }
+                }
             }
             .sheet(isPresented: $viewModel.isFinished) {
                 completionSheet
+            }
+            .sheet(isPresented: $showProUpgrade) {
+                ProUpgradeView()
             }
         }
     }

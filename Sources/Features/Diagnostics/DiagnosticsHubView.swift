@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Центральный диагностический центр (Динамики, Микрофоны, Чек-лист)
 public struct DiagnosticsHubView: View {
-    @State private var selectedTab: Int = 0 // 0: Динамики, 1: Микрофоны, 2: Чек-лист
+    @State private var selectedTab: Int = 0 // 0: Динамики, 1: Микрофоны, 2: График АЧХ, 3: Чек-лист
     
     public init() {}
     
@@ -13,7 +13,7 @@ public struct DiagnosticsHubView: View {
                 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
-                        // Верхний 3-позиционный селектор
+                        // Верхний 4-позиционный селектор
                         tabSelectorBar
                         
                         // Выбранный диагностический экран
@@ -22,6 +22,9 @@ public struct DiagnosticsHubView: View {
                                 .padding(.horizontal, 20)
                         } else if selectedTab == 1 {
                             MicDiagnosticView()
+                                .padding(.horizontal, 20)
+                        } else if selectedTab == 2 {
+                            AcousticHistoryChartView()
                                 .padding(.horizontal, 20)
                         } else {
                             CareChecklistView()
@@ -40,17 +43,18 @@ public struct DiagnosticsHubView: View {
     // MARK: - Компоненты экрана
     
     private var tabSelectorBar: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             tabButton(title: "Динамики", icon: "speaker.wave.2.fill", index: 0)
-            tabButton(title: "Микрофоны", icon: "mic.fill", index: 1)
-            tabButton(title: "Чек-лист", icon: "checklist", index: 2)
+            tabButton(title: "Микрофон", icon: "mic.fill", index: 1)
+            tabButton(title: "График", icon: "chart.xyaxis.line", index: 2)
+            tabButton(title: "Чек-лист", icon: "checklist", index: 3)
         }
-        .padding(6)
+        .padding(5)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color.white.opacity(0.05))
         )
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
     }
     
     private func tabButton(title: String, icon: String, index: Int) -> some View {

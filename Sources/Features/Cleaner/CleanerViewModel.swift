@@ -31,6 +31,7 @@ public final class CleanerViewModel {
         }
     }
     
+    public private(set) var burstTriggerCounter: Int = 0
     public var showVolumeWarning: Bool = false
     
     private var timerTask: Task<Void, Never>?
@@ -45,8 +46,11 @@ public final class CleanerViewModel {
     private func setupPulseCallback() {
         AudioEngineService.shared.onPulseBurstTriggered = { [weak self] in
             Task { @MainActor [weak self] in
-                guard let self, self.isRunning, self.isHapticBoostEnabled else { return }
-                HapticBoostManager.shared.triggerWaterBurst()
+                guard let self, self.isRunning else { return }
+                self.burstTriggerCounter += 1
+                if self.isHapticBoostEnabled {
+                    HapticBoostManager.shared.triggerWaterBurst()
+                }
             }
         }
     }
@@ -245,6 +249,11 @@ public final class CleanerViewModel {
         isPaused = false
         isFinished = true
         AudioEngineService.shared.stop()
+        CleaningHistoryManager.shared.recordCleaning(
+            channel: selectedChannel,
+            mode: selectedMode,
+            duration: Int(totalDuration)
+        )
         HapticFeedback.notification(.success)
     }
 }

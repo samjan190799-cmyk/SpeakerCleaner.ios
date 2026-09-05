@@ -27,16 +27,29 @@ public final class DiagnosticsViewModel {
         guard !isTestingChannel, !isRunningSpectralTest else { return }
         self.selectedChannel = channel
         self.isTestingChannel = true
+        self.testProgress = 0.0
         AudioSessionManager.shared.setChannel(channel)
         
-        // Воспроизведение калибровочного тона 440 Гц (Нота Ля) на 2.5 секунды строго в выбранный динамик
-        AudioEngineService.shared.startTone(frequency: 440.0, waveform: .sine, volume: 0.85, channel: channel)
-        HapticFeedback.notification(.warning)
+        // Для верхнего разговорного динамика используется резонансная частота 1100 Гц (максимальная громкость и разборчивость ресивера).
+        // Для нижнего динамика — плотный калибровочный тон 440 Гц на 100% громкости.
+        let testFreq: Float = (channel == .earpiece) ? 1100.0 : 440.0
+        AudioEngineService.shared.startTone(frequency: testFreq, waveform: .sine, volume: 1.0, channel: channel)
+        HapticFeedback.impact(.medium)
         
-        Task {
-            try? await Task.sleep(nanoseconds: 2_500_000_000)
+        testTask?.cancel()
+        testTask = Task {
+            let totalSteps = 25
+            for step in 1...totalSteps {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                guard !Task.isCancelled else { break }
+                self.testProgress = Double(step) / Double(totalSteps)
+                if step % 6 == 0 {
+                    HapticFeedback.selection()
+                }
+            }
             AudioEngineService.shared.stop()
             self.isTestingChannel = false
+            self.testProgress = 0.0
             HapticFeedback.notification(.success)
         }
     }
@@ -105,6 +118,9 @@ public final class DiagnosticsViewModel {
             self.lastResult = result
             self.isRunningSpectralTest = false
             self.currentTestPhaseText = ""
+            
+            // Запись в журнал истории и графиков
+            CleaningHistoryManager.shared.recordDiagnosticResult(result)
             
             HapticFeedback.notification(.success)
         }

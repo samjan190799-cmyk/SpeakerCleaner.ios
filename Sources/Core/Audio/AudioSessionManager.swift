@@ -51,16 +51,16 @@ public final class AudioSessionManager {
         do {
             switch channel {
             case .main:
-                // Нижний динамик
-                try session.setCategory(.playback, mode: .default, options: [.duckOthers])
+                // Нижний динамик: строгая изоляция громкоговорителя без стерео-подмешивания в верхний спикер
+                try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
                 try session.overrideOutputAudioPort(.speaker)
             case .both:
-                // Оба динамика
+                // Оба динамика: стерео-режим воспроизведения мультимедиа
                 try session.setCategory(.playback, mode: .default, options: [.duckOthers])
                 try session.overrideOutputAudioPort(.speaker)
             case .earpiece:
-                // Верхний разговорный динамик (ресивер)
-                try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth])
+                // Верхний разговорный динамик (ресивер): чистый режим .default без телефонного глушения и компрессии
+                try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth])
                 try session.overrideOutputAudioPort(.none)
             }
             try session.setActive(true)

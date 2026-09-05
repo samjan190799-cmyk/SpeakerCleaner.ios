@@ -194,8 +194,9 @@ public final class AudioEngineService: @unchecked Sendable {
                         leftPtr?[frame] = 0.0
                         rightPtr?[frame] = sampleValue
                     case .earpiece:
-                        // Только верхний разговорный динамик (Left канал в портретной ориентации iOS)
-                        leftPtr?[frame] = sampleValue
+                        // Только верхний разговорный динамик (Left канал с компенсационным усилением +35%)
+                        let boostedSample = min(1.0, max(-1.0, sampleValue * 1.35))
+                        leftPtr?[frame] = boostedSample
                         rightPtr?[frame] = 0.0
                     case .both:
                         // Оба динамика одновременно
@@ -206,7 +207,8 @@ public final class AudioEngineService: @unchecked Sendable {
                     for channel in 0..<channels {
                         let channelBuffer = ablPointer[channel]
                         let channelPtr = channelBuffer.mData?.assumingMemoryBound(to: Float.self)
-                        channelPtr?[frame] = sampleValue
+                        let gain: Float = (params.channel == .earpiece) ? 1.35 : 1.0
+                        channelPtr?[frame] = min(1.0, max(-1.0, sampleValue * gain))
                     }
                 }
             }
