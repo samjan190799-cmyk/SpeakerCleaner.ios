@@ -63,9 +63,10 @@ public final class SpectralAnalyzer {
         
         let bufferSize = AVAudioFrameCount(fftSize)
         
+        let setup = self.fftSetup
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: format) { [weak self] buffer, _ in
-            self?.processAudioBuffer(buffer)
+            self?.processAudioBuffer(buffer, fftSetup: setup)
         }
         
         do {
@@ -87,7 +88,7 @@ public final class SpectralAnalyzer {
     }
     
     // MARK: - Обработка аудио-буфера с вычислением FFT через vDSP
-    private nonisolated func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
+    private nonisolated func processAudioBuffer(_ buffer: AVAudioPCMBuffer, fftSetup: FFTSetup?) {
         guard let channelData = buffer.floatChannelData?[0] else { return }
         let frameCount = Int(buffer.frameLength)
         guard frameCount >= fftSize else { return }
@@ -116,7 +117,7 @@ public final class SpectralAnalyzer {
                 }
                 
                 let log2n = vDSP_Length(log2(Double(fftSize)))
-                if let fftSetup = self.fftSetup {
+                if let fftSetup {
                     vDSP_fft_zrip(fftSetup, &splitComplex, 1, log2n, FFTDirection(FFT_FORWARD))
                 }
             }
