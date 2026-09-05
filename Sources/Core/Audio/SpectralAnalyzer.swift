@@ -2,6 +2,22 @@ import Foundation
 import AVFoundation
 import Accelerate
 
+// MARK: - Потокобезопасная RAII-обертка над vDSP FFTSetup для Swift 6
+final class FFTSetupWrapper: @unchecked Sendable {
+    let setup: FFTSetup?
+    
+    init(size: Int) {
+        let log2n = vDSP_Length(log2(Double(size)))
+        self.setup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2))
+    }
+    
+    deinit {
+        if let setup {
+            vDSP_destroy_fftsetup(setup)
+        }
+    }
+}
+
 // MARK: - Спектральный анализатор частотного отклика микрофона на базе Accelerate vDSP
 @Observable
 @MainActor
@@ -15,22 +31,10 @@ public final class SpectralAnalyzer {
     
     @ObservationIgnored private let recordingEngine = AVAudioEngine()
     @ObservationIgnored private let fftSize = 1024
-    @ObservationIgnored private var fftSetup: FFTSetup?
+    @ObservationIgnored private let fftWrapper = FFTSetupWrapper(size: 1024)
     
     private init() {
         checkPermission()
-        setupFFT()
-    }
-    
-    deinit {
-        if let fftSetup {
-            vDSP_destroy_fftsetup(fftSetup)
-        }
-    }
-    
-    private func setupFFT() {
-        let log2n = vDSP_Length(log2(Double(fftSize)))
-        fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2))
     }
     
     public func checkPermission() {
@@ -63,7 +67,7 @@ public final class SpectralAnalyzer {
         
         let bufferSize = AVAudioFrameCount(fftSize)
         
-        let setup = self.fftSetup
+        let setup = self.fftWrapper.setup
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: format) { [weak self] buffer, _ in
             self?.processAudioBuffer(buffer, fftSetup: setup)
