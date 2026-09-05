@@ -1,12 +1,13 @@
 import SwiftUI
 
 // MARK: - Режимы очистки динамика
-public enum CleaningMode: String, CaseIterable, Identifiable, Sendable {
+public enum CleaningMode: String, CaseIterable, Identifiable, Sendable, Codable {
     case water = "Вода"
     case dust = "Пыль"
     case pro = "Pro-режим"
     
     public var id: String { rawValue }
+    public var title: String { rawValue }
     
     public var subtitle: String {
         switch self {
