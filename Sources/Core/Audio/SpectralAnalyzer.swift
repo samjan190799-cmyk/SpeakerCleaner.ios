@@ -15,7 +15,7 @@ public final class SpectralAnalyzer {
     
     private let recordingEngine = AVAudioEngine()
     private let fftSize = 1024
-    private nonisolated(unsafe) var fftSetup: FFTSetup?
+    private nonisolated var fftSetup: FFTSetup?
     
     private init() {
         checkPermission()

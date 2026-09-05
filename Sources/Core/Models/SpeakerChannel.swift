@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - Акустические каналы динамиков
-public enum SpeakerChannel: String, CaseIterable, Identifiable, Sendable {
+public enum SpeakerChannel: String, CaseIterable, Identifiable, Sendable, Codable {
     case main = "Основной динамик"
     case earpiece = "Разговорный динамик"
     case both = "Оба динамика"
