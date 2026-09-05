@@ -13,9 +13,9 @@ public final class SpectralAnalyzer {
     public private(set) var inputLevelDb: Float = -60.0
     public private(set) var hasMicrophonePermission: Bool = false
     
-    private let recordingEngine = AVAudioEngine()
-    private let fftSize = 1024
-    private nonisolated var fftSetup: FFTSetup?
+    @ObservationIgnored private let recordingEngine = AVAudioEngine()
+    @ObservationIgnored private let fftSize = 1024
+    @ObservationIgnored private var fftSetup: FFTSetup?
     
     private init() {
         checkPermission()
