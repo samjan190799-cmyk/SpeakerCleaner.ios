@@ -30,6 +30,9 @@ public struct CleanerView: View {
                         
                         // Селектор каналов вывода (Основной / Разговорный)
                         channelSelectorCard
+
+                        // Переключатель усиленного режима (звук и вибрация)
+                        boostCard
                         
                         // Селектор программ очистки (Вода / Пыль / Pro)
                         ModeSelectorView(
@@ -251,6 +254,35 @@ public struct CleanerView: View {
         .liquidGlass(cornerRadius: 16)
     }
     
+    private var boostCard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(viewModel.isBoostEnabled ? Theme.dustGold : Theme.textTertiary)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Усиленный режим")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Theme.textPrimary)
+                Text("Громче звук и непрерывная вибрация. Для сравнения на устройстве.")
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.textSecondary)
+            }
+
+            Spacer()
+
+            Toggle("Усиленный режим", isOn: $viewModel.isBoostEnabled)
+                .labelsHidden()
+                .tint(Theme.dustGold)
+                .disabled(viewModel.isRunning)
+                .onChange(of: viewModel.isBoostEnabled) { _, _ in
+                    HapticFeedback.selection()
+                }
+        }
+        .padding(14)
+        .liquidGlass(cornerRadius: 16)
+    }
+
     private var controlButtons: some View {
         VStack(spacing: 12) {
             if !viewModel.isRunning {
