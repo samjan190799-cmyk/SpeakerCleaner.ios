@@ -71,16 +71,13 @@ public final class DiagnosticsViewModel {
 
             // Уровень читается в полосе самого тестового тона; пик по фазам собирается в АЧХ
             var responsePeaks = [Float](repeating: 0.0, count: SpectralBandLayout.bandCount)
-            func holdPeaks() {
-                responsePeaks = zip(responsePeaks, SpectralAnalyzer.shared.spectrumBands).map { max($0, $1) }
-            }
 
             // Фаза 1: Проверка низких частот (Бас / Мембрана) 180 Гц
             self.currentTestPhaseText = "Тест низких частот (180 Гц)..."
             AudioEngineService.shared.startTone(frequency: 180.0, waveform: .sine, volume: 0.9)
             try? await Task.sleep(nanoseconds: 1_800_000_000)
             let bassSample = SpectralAnalyzer.shared.toneLevel(at: 180.0)
-            holdPeaks()
+            self.holdPeaks(into: &responsePeaks)
             self.testProgress = 0.33
             
             // Фаза 2: Проверка средних частот (Разборчивость речи) 1500 Гц
@@ -88,7 +85,7 @@ public final class DiagnosticsViewModel {
             AudioEngineService.shared.startTone(frequency: 1500.0, waveform: .sine, volume: 0.85)
             try? await Task.sleep(nanoseconds: 1_800_000_000)
             let midSample = SpectralAnalyzer.shared.toneLevel(at: 1500.0)
-            holdPeaks()
+            self.holdPeaks(into: &responsePeaks)
             self.testProgress = 0.66
             
             // Фаза 3: Проверка высоких частот (Чистота сетки) 6500 Гц
@@ -96,7 +93,7 @@ public final class DiagnosticsViewModel {
             AudioEngineService.shared.startTone(frequency: 6500.0, waveform: .triangle, volume: 0.8)
             try? await Task.sleep(nanoseconds: 1_800_000_000)
             let trebleSample = SpectralAnalyzer.shared.toneLevel(at: 6500.0)
-            holdPeaks()
+            self.holdPeaks(into: &responsePeaks)
             self.testProgress = 1.0
             
             // Остановка воспроизведения и анализатора (stop() обнуляет полосы, поэтому АЧХ снята выше)
@@ -134,5 +131,10 @@ public final class DiagnosticsViewModel {
             
             HapticFeedback.notification(.success)
         }
+    }
+
+    /// Накапливает поканальный максимум текущих полос спектра (метод класса, чтобы унаследовать изоляцию @MainActor)
+    private func holdPeaks(into peaks: inout [Float]) {
+        peaks = zip(peaks, SpectralAnalyzer.shared.spectrumBands).map { max($0, $1) }
     }
 }
