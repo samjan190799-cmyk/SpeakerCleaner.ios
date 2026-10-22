@@ -12,6 +12,8 @@ public final class AudioSessionManager {
     public private(set) var isMaxVolume: Bool = true
     public private(set) var activeChannel: SpeakerChannel = .main
     public private(set) var isHeadphonesConnected: Bool = false
+    /// Усиленный режим действует только на время очистки: диагностике нужна запись с микрофона (.playAndRecord)
+    public private(set) var isBoostActive: Bool = false
     
     private var volumeObservation: NSKeyValueObservation?
     
@@ -39,6 +41,13 @@ public final class AudioSessionManager {
         }
     }
     
+    /// Включает или выключает усиленную конфигурацию сессии и сразу применяет маршрутизацию
+    public func setBoostActive(_ active: Bool) {
+        guard isBoostActive != active else { return }
+        isBoostActive = active
+        applyChannelRouting(activeChannel)
+    }
+
     /// Переключение канала вывода звука (Нижний мультимедийный спикер или Верхний разговорный динамик)
     public func setChannel(_ channel: SpeakerChannel) {
         self.activeChannel = channel
@@ -52,8 +61,19 @@ public final class AudioSessionManager {
             switch channel {
             case .main:
                 // Нижний динамик: строгая изоляция громкоговорителя без стерео-подмешивания в верхний спикер
-                try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
-                try session.overrideOutputAudioPort(.speaker)
+                if isBoostActive {
+                    // Усиленный режим: .playback дает более громкий вывод на динамик, чем .playAndRecord
+                    try session.setCategory(.playback, mode: .default, options: [])
+                    try session.setActive(true)
+                    // .playback не умеет принудительно выбирать динамик: при наушниках возвращаемся к .playAndRecord
+                    if externalOutputConnected(session) {
+                        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
+                        try session.overrideOutputAudioPort(.speaker)
+                    }
+                } else {
+                    try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
+                    try session.overrideOutputAudioPort(.speaker)
+                }
             case .both:
                 // Оба динамика: стерео-режим воспроизведения мультимедиа
                 try session.setCategory(.playback, mode: .default, options: [.duckOthers])
@@ -66,6 +86,11 @@ public final class AudioSessionManager {
             try session.setActive(true)
         } catch {
             print("❌ Ошибка маршрутизации аудио-порта \(channel.rawValue): \(error.localizedDescription)")
+        }
+
+        if isBoostActive {
+            // Без этого iOS может глушить вибрацию, пока сессия допускает запись
+            try? session.setAllowHapticsAndSystemSoundsDuringRecording(true)
         }
     }
     
@@ -85,13 +110,16 @@ public final class AudioSessionManager {
     /// Проверка подключенных наушников или внешних колонок
     public func checkConnectedOutputs() {
         let session = AVAudioSession.sharedInstance()
-        let outputs = session.currentRoute.outputs
-        let headphones = outputs.contains { port in
+        self.isHeadphonesConnected = externalOutputConnected(session)
+    }
+
+    /// Подключены ли наушники или внешняя акустика (проводные, Bluetooth)
+    private func externalOutputConnected(_ session: AVAudioSession) -> Bool {
+        session.currentRoute.outputs.contains { port in
             port.portType == .headphones ||
             port.portType == .bluetoothA2DP ||
             port.portType == .bluetoothHFP ||
             port.portType == .bluetoothLE
         }
-        self.isHeadphonesConnected = headphones
     }
 }

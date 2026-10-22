@@ -17,6 +17,7 @@ final class AudioRenderContext: @unchecked Sendable {
     private var _sweepEndFreq: Float = 10000.0
     private var _sweepDuration: Double = 5.0
     private var _channel: SpeakerChannel = .both
+    private var _boost: Bool = false
     
     // Внутренние параметры аудио-потока
     var phase: Float = 0.0
@@ -62,6 +63,18 @@ final class AudioRenderContext: @unchecked Sendable {
         }
     }
     
+    func setBoost(_ boost: Bool) {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        self._boost = boost
+    }
+
+    var isBoost: Bool {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        return _boost
+    }
+
     func getParams() -> (
         frequency: Float,
         waveform: WaveformType,
@@ -73,7 +86,8 @@ final class AudioRenderContext: @unchecked Sendable {
         sweepStart: Float,
         sweepEnd: Float,
         sweepDuration: Double,
-        channel: SpeakerChannel
+        channel: SpeakerChannel,
+        boost: Bool
     ) {
         os_unfair_lock_lock(&lock)
         defer { os_unfair_lock_unlock(&lock) }
@@ -88,7 +102,8 @@ final class AudioRenderContext: @unchecked Sendable {
             _sweepStartFreq,
             _sweepEndFreq,
             _sweepDuration,
-            _channel
+            _channel,
+            _boost
         )
     }
 }
@@ -113,6 +128,11 @@ public final class AudioEngineService: @unchecked Sendable {
     public func setChannel(_ channel: SpeakerChannel) {
         self.activeChannel = channel
         renderContext.setChannel(channel)
+        // В усиленном режиме сигнал идет в оба канала с одинаковой амплитудой, панорама не нужна
+        if renderContext.isBoost {
+            engine.mainMixerNode.pan = 0.0
+            return
+        }
         switch channel {
         case .main:
             engine.mainMixerNode.pan = 1.0
@@ -123,6 +143,12 @@ public final class AudioEngineService: @unchecked Sendable {
         }
     }
     
+    /// Усиленный режим: один и тот же сигнал в оба канала (при сведении стерео в моно амплитуда не падает вдвое)
+    public func setBoost(_ enabled: Bool) {
+        renderContext.setBoost(enabled)
+        setChannel(activeChannel)
+    }
+
     private func setupSourceNode() {
         let context = self.renderContext
         
@@ -187,6 +213,15 @@ public final class AudioEngineService: @unchecked Sendable {
                 if channels >= 2 {
                     let leftPtr = ablPointer[0].mData?.assumingMemoryBound(to: Float.self)
                     let rightPtr = ablPointer[1].mData?.assumingMemoryBound(to: Float.self)
+
+                    if params.boost {
+                        // Усиленный режим: симметричный сигнал в оба канала, верхний динамик с компенсацией +35%
+                        let gain: Float = (params.channel == .earpiece) ? 1.35 : 1.0
+                        let boostedSample = min(1.0, max(-1.0, sampleValue * gain))
+                        leftPtr?[frame] = boostedSample
+                        rightPtr?[frame] = boostedSample
+                        continue
+                    }
                     
                     switch params.channel {
                     case .main:

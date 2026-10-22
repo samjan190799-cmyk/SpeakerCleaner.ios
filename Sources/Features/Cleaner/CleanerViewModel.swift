@@ -5,6 +5,8 @@ import SwiftUI
 @Observable
 @MainActor
 public final class CleanerViewModel {
+    private static let boostStorageKey = "speaker_cleaner_boost_mode_v1"
+
     public var selectedMode: CleaningMode = .water {
         didSet {
             if !isRunning {
@@ -28,9 +30,17 @@ public final class CleanerViewModel {
     public var isHapticBoostEnabled: Bool = true {
         didSet {
             HapticBoostManager.shared.isHapticBoostEnabled = isHapticBoostEnabled
+            syncContinuousVibration()
         }
     }
-    
+
+    /// Усиленный режим: меандр без пауз, сессия .playback и непрерывная вибрация (для сравнения на устройстве)
+    public var isBoostEnabled: Bool = UserDefaults.standard.bool(forKey: CleanerViewModel.boostStorageKey) {
+        didSet {
+            UserDefaults.standard.set(isBoostEnabled, forKey: Self.boostStorageKey)
+        }
+    }
+
     public private(set) var burstTriggerCounter: Int = 0
     public var showVolumeWarning: Bool = false
     
@@ -80,6 +90,7 @@ public final class CleanerViewModel {
             showVolumeWarning = true
         }
         
+        AudioSessionManager.shared.setBoostActive(isBoostEnabled)
         AudioSessionManager.shared.setChannel(selectedChannel)
         isRunning = true
         isPaused = false
@@ -91,36 +102,13 @@ public final class CleanerViewModel {
         switch selectedMode {
         case .water:
             currentFrequency = 165.0
-            AudioEngineService.shared.startTone(
-                frequency: currentFrequency,
-                waveform: .sine,
-                volume: 1.0,
-                isPulsing: true,
-                pulseOn: 0.45,
-                pulseOff: 0.15,
-                channel: selectedChannel
-            )
-            
         case .dust:
             currentFrequency = 100.0
-            AudioEngineService.shared.startSweep(
-                startFreq: 100.0,
-                endFreq: 10000.0,
-                duration: 4.0,
-                waveform: .sawtooth,
-                volume: 1.0,
-                channel: selectedChannel
-            )
-            
         case .pro:
-            AudioEngineService.shared.startTone(
-                frequency: currentFrequency,
-                waveform: .sine,
-                volume: 1.0,
-                isPulsing: false,
-                channel: selectedChannel
-            )
+            break
         }
+        startAudio()
+        syncContinuousVibration()
         
         startTimerLoop()
     }
@@ -131,6 +119,7 @@ public final class CleanerViewModel {
         timerTask?.cancel()
         timerTask = nil
         AudioEngineService.shared.stop()
+        syncContinuousVibration()
         HapticFeedback.impact(.light)
     }
     
@@ -138,47 +127,80 @@ public final class CleanerViewModel {
         guard isRunning, isPaused else { return }
         isPaused = false
         HapticFeedback.impact(.medium)
-        
-        switch selectedMode {
-        case .water:
-            AudioEngineService.shared.startTone(
-                frequency: currentFrequency,
-                waveform: .sine,
-                volume: 1.0,
-                isPulsing: true,
-                channel: selectedChannel
-            )
-        case .dust:
-            AudioEngineService.shared.startSweep(
-                startFreq: 100.0,
-                endFreq: 10000.0,
-                duration: 4.0,
-                waveform: .sawtooth,
-                volume: 1.0,
-                channel: selectedChannel
-            )
-        case .pro:
-            AudioEngineService.shared.startTone(
-                frequency: currentFrequency,
-                waveform: .sine,
-                volume: 1.0,
-                channel: selectedChannel
-            )
-        }
-        
+
+        startAudio()
+        syncContinuousVibration()
+
         startTimerLoop()
     }
-    
+
     public func stopCleaning() {
         timerTask?.cancel()
         timerTask = nil
         isRunning = false
         isPaused = false
-        AudioEngineService.shared.stop()
+        endAudio()
         resetDuration()
         HapticFeedback.impact(.rigid)
     }
+
+    // MARK: - Звук и вибрация
+
+    /// Запуск тона или свипа текущего режима. В усиленном режиме: меандр (больше энергии и гармоник) и без пауз
+    private func startAudio() {
+        let boost = isBoostEnabled
+        AudioEngineService.shared.setBoost(boost)
+
+        switch selectedMode {
+        case .water:
+            AudioEngineService.shared.startTone(
+                frequency: currentFrequency,
+                waveform: boost ? .square : .sine,
+                volume: 1.0,
+                isPulsing: !boost,
+                pulseOn: 0.45,
+                pulseOff: 0.15,
+                channel: selectedChannel
+            )
+
+        case .dust:
+            AudioEngineService.shared.startSweep(
+                startFreq: 100.0,
+                endFreq: 10000.0,
+                duration: 4.0,
+                waveform: boost ? .square : .sawtooth,
+                volume: 1.0,
+                channel: selectedChannel
+            )
+
+        case .pro:
+            AudioEngineService.shared.startTone(
+                frequency: currentFrequency,
+                waveform: boost ? .square : .sine,
+                volume: 1.0,
+                isPulsing: false,
+                channel: selectedChannel
+            )
+        }
+    }
     
+    /// Полная остановка: звук, вибрация и возврат аудио-сессии к обычной конфигурации (нужна диагностике)
+    private func endAudio() {
+        AudioEngineService.shared.stop()
+        AudioEngineService.shared.setBoost(false)
+        syncContinuousVibration()
+        AudioSessionManager.shared.setBoostActive(false)
+    }
+
+    /// Непрерывная вибрация идет только в усиленном режиме, пока очистка запущена, не на паузе и Haptic Boost включен
+    private func syncContinuousVibration() {
+        if isBoostEnabled && isHapticBoostEnabled && isRunning && !isPaused {
+            HapticBoostManager.shared.startContinuousVibration()
+        } else {
+            HapticBoostManager.shared.stopContinuousVibration()
+        }
+    }
+
     // MARK: - Внутренний цикл таймера
     private func startTimerLoop() {
         timerTask?.cancel()
@@ -208,6 +230,11 @@ public final class CleanerViewModel {
     private func updateFrequenciesForMode() {
         switch selectedMode {
         case .water:
+            // Без пауз в тоне (усиленный режим) такты импульсов не приходят: анимацию брызг ведем по таймеру
+            if isBoostEnabled && fmod(elapsedSeconds, 0.6) < 0.1 {
+                burstTriggerCounter += 1
+            }
+
             // Фазовое переключение резонансных частот для выдувания капель разного объема
             let progressFraction = elapsedSeconds / totalDuration
             if progressFraction < 0.33 {
@@ -234,8 +261,8 @@ public final class CleanerViewModel {
             let logEnd = log(10000.0)
             currentFrequency = exp(Float(logStart) + sweepProgress * Float(logEnd - logStart))
             
-            // Периодическая микровибрация
-            if fmod(elapsedSeconds, 1.0) < 0.1 && isHapticBoostEnabled {
+            // Периодическая микровибрация (в усиленном режиме вместо нее идет непрерывная вибрация)
+            if !isBoostEnabled && fmod(elapsedSeconds, 1.0) < 0.1 && isHapticBoostEnabled {
                 HapticBoostManager.shared.triggerDustMicroVibration()
             }
             
@@ -248,7 +275,7 @@ public final class CleanerViewModel {
         isRunning = false
         isPaused = false
         isFinished = true
-        AudioEngineService.shared.stop()
+        endAudio()
         CleaningHistoryManager.shared.recordCleaning(
             channel: selectedChannel,
             mode: selectedMode,

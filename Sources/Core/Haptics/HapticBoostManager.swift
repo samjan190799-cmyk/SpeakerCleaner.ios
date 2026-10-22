@@ -8,6 +8,7 @@ public final class HapticBoostManager {
     public static let shared = HapticBoostManager()
     
     private var engine: CHHapticEngine?
+    private var continuousPlayer: CHHapticAdvancedPatternPlayer?
     public private(set) var supportsHaptics: Bool = false
     public var isHapticBoostEnabled: Bool = true
     
@@ -107,6 +108,56 @@ public final class HapticBoostManager {
         }
     }
     
+    /// Непрерывная сильная вибрация для усиленного режима: зацикленный паттерн 1 с,
+    /// полная интенсивность и четыре резких удара в секунду (вместо коротких всплесков по тактам импульсов)
+    public func startContinuousVibration() {
+        guard isHapticBoostEnabled, supportsHaptics, let engine, continuousPlayer == nil else { return }
+
+        do {
+            // Движок мог остановиться (фон, прерывание сессии): повторный start() безопасен
+            try engine.start()
+
+            var events: [CHHapticEvent] = [
+                CHHapticEvent(
+                    eventType: .hapticContinuous,
+                    parameters: [
+                        CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
+                        CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.5)
+                    ],
+                    relativeTime: 0,
+                    duration: 1.0
+                )
+            ]
+            for i in 0..<4 {
+                events.append(
+                    CHHapticEvent(
+                        eventType: .hapticTransient,
+                        parameters: [
+                            CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
+                            CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0)
+                        ],
+                        relativeTime: Double(i) * 0.25
+                    )
+                )
+            }
+
+            let pattern = try CHHapticPattern(events: events, parameters: [])
+            let player = try engine.makeAdvancedPlayer(with: pattern)
+            player.loopEnabled = true
+            try player.start(atTime: CHHapticTimeImmediate)
+            continuousPlayer = player
+        } catch {
+            print("❌ Ошибка непрерывной вибрации: \(error.localizedDescription)")
+            fallbackImpact()
+        }
+    }
+
+    public func stopContinuousVibration() {
+        guard let player = continuousPlayer else { return }
+        continuousPlayer = nil
+        try? player.stop(atTime: CHHapticTimeImmediate)
+    }
+
     private func fallbackImpact() {
         let generator = UIImpactFeedbackGenerator(style: .heavy)
         generator.prepare()
