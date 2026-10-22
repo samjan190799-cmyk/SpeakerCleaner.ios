@@ -68,45 +68,52 @@ public final class DiagnosticsViewModel {
             
             // Активируем спектральный анализатор микрофона
             SpectralAnalyzer.shared.start()
-            
+
+            // Уровень читается в полосе самого тестового тона; пик по фазам собирается в АЧХ
+            var responsePeaks = [Float](repeating: 0.0, count: SpectralBandLayout.bandCount)
+
             // Фаза 1: Проверка низких частот (Бас / Мембрана) 180 Гц
             self.currentTestPhaseText = "Тест низких частот (180 Гц)..."
             AudioEngineService.shared.startTone(frequency: 180.0, waveform: .sine, volume: 0.9)
             try? await Task.sleep(nanoseconds: 1_800_000_000)
-            let bassSample = SpectralAnalyzer.shared.spectrumBands.prefix(8).reduce(0, +) / 8.0
+            let bassSample = SpectralAnalyzer.shared.toneLevel(at: 180.0)
+            self.holdPeaks(into: &responsePeaks)
             self.testProgress = 0.33
             
             // Фаза 2: Проверка средних частот (Разборчивость речи) 1500 Гц
             self.currentTestPhaseText = "Тест средних частот (1.5 кГц)..."
             AudioEngineService.shared.startTone(frequency: 1500.0, waveform: .sine, volume: 0.85)
             try? await Task.sleep(nanoseconds: 1_800_000_000)
-            let midSample = SpectralAnalyzer.shared.spectrumBands[8..<16].reduce(0, +) / 8.0
+            let midSample = SpectralAnalyzer.shared.toneLevel(at: 1500.0)
+            self.holdPeaks(into: &responsePeaks)
             self.testProgress = 0.66
             
             // Фаза 3: Проверка высоких частот (Чистота сетки) 6500 Гц
             self.currentTestPhaseText = "Тест высоких частот (6.5 кГц)..."
             AudioEngineService.shared.startTone(frequency: 6500.0, waveform: .triangle, volume: 0.8)
             try? await Task.sleep(nanoseconds: 1_800_000_000)
-            let trebleSample = SpectralAnalyzer.shared.spectrumBands.suffix(8).reduce(0, +) / 8.0
+            let trebleSample = SpectralAnalyzer.shared.toneLevel(at: 6500.0)
+            self.holdPeaks(into: &responsePeaks)
             self.testProgress = 1.0
             
-            // Остановка воспроизведения и анализатора
+            // Остановка воспроизведения и анализатора (stop() обнуляет полосы, поэтому АЧХ снята выше)
             AudioEngineService.shared.stop()
             SpectralAnalyzer.shared.stop()
             
-            // Вычисление оценки чистоты динамика (0 ... 100%)
-            let bassClarity = Double(min(max(bassSample * 1.4, 0.2), 1.0))
-            let midClarity = Double(min(max(midSample * 1.2, 0.3), 1.0))
-            let trebleClarity = Double(min(max(trebleSample * 1.5, 0.1), 1.0))
+            // Уровни тонов уже в шкале 0 ... 1 (−80 дБ ... 0 дБ); поправочные множители убраны:
+            // они были подобраны под прежнюю, неверную шкалу полос и завышали оценку до 100%
+            let bassClarity = Double(bassSample)
+            let midClarity = Double(midSample)
+            let trebleClarity = Double(trebleSample)
             
-            // Взвешенный расчет итогового индекса
+            // Взвешенный расчет итогового индекса (0 ... 100%)
             let totalWeighted = (bassClarity * 0.35) + (midClarity * 0.35) + (trebleClarity * 0.30)
             let finalScore = Int(totalWeighted * 100)
             
             let result = DiagnosticResult(
                 channel: self.selectedChannel,
                 cleanlinessScore: finalScore,
-                frequencyResponse: SpectralAnalyzer.shared.spectrumBands,
+                frequencyResponse: responsePeaks,
                 bassClarity: bassClarity,
                 midClarity: midClarity,
                 trebleClarity: trebleClarity
@@ -124,5 +131,10 @@ public final class DiagnosticsViewModel {
             
             HapticFeedback.notification(.success)
         }
+    }
+
+    /// Накапливает поканальный максимум текущих полос спектра (метод класса, чтобы унаследовать изоляцию @MainActor)
+    private func holdPeaks(into peaks: inout [Float]) {
+        peaks = zip(peaks, SpectralAnalyzer.shared.spectrumBands).map { max($0, $1) }
     }
 }
