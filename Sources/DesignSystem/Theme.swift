@@ -30,7 +30,7 @@ public enum Theme {
     // Текстовые цвета
     public static let textPrimary = Color.white
     public static let textSecondary = Color.white.opacity(0.7)
-    public static let textTertiary = Color.white.opacity(0.4)
+    public static let textTertiary = Color.white.opacity(0.5) // ≥ 4.5:1 на фоне и карточках (при 0.4 было ~3.7:1)
 }
 
 // MARK: - Градиенты

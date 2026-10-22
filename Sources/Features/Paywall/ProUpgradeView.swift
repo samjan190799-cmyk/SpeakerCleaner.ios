@@ -316,7 +316,7 @@ public struct ProUpgradeView: View {
             
             Text("Оплата через Apple App Store. Подписку можно отменить в любое время в настройках Apple ID.")
                 .font(.system(size: 10))
-                .foregroundColor(Theme.textTertiary.opacity(0.8))
+                .foregroundColor(Theme.textTertiary)
                 .multilineTextAlignment(.center)
         }
         .padding(.top, 4)
